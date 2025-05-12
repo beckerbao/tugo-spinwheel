@@ -23,59 +23,56 @@ function App() {
   const [remainingPlays, setRemainingPlays] = useState(gameConfig.maxPlaysPerDay);
   const [selectedPrize, setSelectedPrize] = useState<Prize | null>(null);
   const [showPrizeModal, setShowPrizeModal] = useState(false);
-  
+
   useEffect(() => {
     const remaining = getRemainingPlays(gameConfig.maxPlaysPerDay);
     setRemainingPlays(remaining);
   }, []);
-  
+
   const handleRegister = (playerData: Player) => {
     setPlayer(playerData);
     setIsRegistered(true);
   };
-  
+
   const handleSpin = () => {
     if (isSpinning || remainingPlays <= 0 || !player) return;
-    
+  
     const prize = selectPrize(gameConfig.prizes);
-    setSelectedPrize(prize);
-    
-    const angle = calculateTargetAngle(gameConfig.prizes, prize);
+    // const angle = calculateTargetAngle(gameConfig.prizes, prize);
+    const index = gameConfig.prizes.findIndex(p => p.id === prize.id);
+    const baseAngle = 360 / gameConfig.prizes.length;
+    const angle = 360 * 3 + baseAngle * index + Math.random(); // thay vì 5 vòng
+
+    console.log("🎯 Selected prize:", prize.name, "| Target angle:", angle);
+
+
     setTargetAngle(angle);
-    
+  
+    // setTargetAngle(angle);
+    setSelectedPrize(prize);
     setIsSpinning(true);
     setHasSpinEnded(false);
     setShowPrizeModal(false);
-    
-    const spinResult = {
+  
+    savePlayHistory(player, {
       prizeId: prize.id,
       timestamp: Date.now()
-    };
-    savePlayHistory(player, spinResult);
-    
+    });
+  
     setRemainingPlays(prev => prev - 1);
   };
-  
+
   const handleSpinEnd = () => {
+    console.log("📍 Spin ended, setting isSpinning = false");
     setIsSpinning(false);
     setHasSpinEnded(true);
-    
-    setTimeout(() => {
-      setShowPrizeModal(true);
-    }, 500);
+    setShowPrizeModal(true);
   };
-  
+
   const handleCloseModal = () => {
     setShowPrizeModal(false);
   };
-  
-  const getButtonText = () => {
-    if (remainingPlays <= 0) return "Hết lượt quay hôm nay";
-    if (isSpinning) return "Đang quay...";
-    if (hasSpinEnded) return "Quay tiếp";
-    return "QUAY NGAY";
-  };
-  
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-purple-50 to-purple-100">
       <header className="bg-purple-700 text-white py-6 px-4 shadow-md">
@@ -86,7 +83,7 @@ function App() {
           <p className="text-lg mb-0">{gameConfig.description}</p>
         </div>
       </header>
-      
+
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {!isRegistered ? (
@@ -105,16 +102,17 @@ function App() {
                   <span className="font-bold text-purple-600">{remainingPlays}</span> lượt quay hôm nay.
                 </p>
               </div>
-              
+
               <div className="mb-8">
                 <LuckyWheel 
                   prizes={gameConfig.prizes}
                   isSpinning={isSpinning}
                   targetAngle={targetAngle}
                   onSpinEnd={handleSpinEnd}
+                  onSpin={handleSpin}  // truyền thêm prop này
                 />
               </div>
-              
+
               <button
                 onClick={handleSpin}
                 disabled={isSpinning || remainingPlays <= 0}
@@ -124,17 +122,17 @@ function App() {
                     : 'bg-yellow-500 hover:bg-yellow-600 hover:scale-105'
                 } text-white`}
               >
-                {getButtonText()}
+                {isSpinning ? "Đang quay..." : remainingPlays <= 0 ? "Hết lượt quay" : "QUAY NGAY"}
               </button>
-              
+
               <SocialShare message="Tôi vừa tham gia vòng quay may mắn và nhận được phần quà hấp dẫn! Bạn cũng thử ngay nhé!" />
             </div>
           )}
         </div>
       </main>
-      
+
       <Footer />
-      
+
       <PrizeNotification 
         prize={selectedPrize}
         isOpen={showPrizeModal}

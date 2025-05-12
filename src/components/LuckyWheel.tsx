@@ -91,7 +91,7 @@ const LuckyWheel: React.FC<LuckyWheelProps> = ({
             viewBox="0 0 200 200"
             className="w-[95%] h-[95%] rounded-full"
             style={{
-              transform: `rotate(${rotation}deg)`,
+              transform: `rotate(${-rotation}deg)`,
               transition,
             }}
           >

@@ -41,12 +41,17 @@ function App() {
     const index = gameConfig.prizes.findIndex(p => p.id === prize.id);
     const anglePerPrize = 360 / gameConfig.prizes.length;
   
-    const targetIndexAngle = index * anglePerPrize;
+    // const targetIndexAngle = index * anglePerPrize;
+    const targetIndexAngle = index * anglePerPrize + anglePerPrize / 2;
     const fullSpins = 360 * 3;
     const randomOffset = Math.random() * anglePerPrize * 0.8 - anglePerPrize * 0.4;
     const angle = fullSpins + targetIndexAngle + randomOffset;
   
     console.log("🎯 Random target:", prize.name, "| Final angle:", angle);
+
+    console.log("🎯 Random target:", prize.name);
+    console.log("🔢 Prize index:", index);
+    console.log("🎯 Target angle (final):", angle);
   
     setTargetAngle(angle);
     setSelectedPrize(prize); // set ngay để hiển thị
@@ -64,12 +69,17 @@ function App() {
   
 
   const handleSpinEnd = () => {
-    const normalizedAngle = (360 - (targetAngle % 360)) % 360;
+    // const normalizedAngle = (360 - (targetAngle % 360)) % 360;
+    const normalizedAngle = targetAngle % 360;
     const anglePerPrize = 360 / gameConfig.prizes.length;
     const index = Math.floor(normalizedAngle / anglePerPrize);
     const actualPrize = gameConfig.prizes[index];
   
     console.log("🎯 Prize at pointer:", actualPrize.name, "| Angle:", normalizedAngle);
+
+    console.log("✅ Final normalized angle:", normalizedAngle);
+    console.log("📍 Prize at pointer:", actualPrize.name);
+    console.log("🔢 Index resolved from angle:", index);
   
     setSelectedPrize(actualPrize);
     setIsSpinning(false);

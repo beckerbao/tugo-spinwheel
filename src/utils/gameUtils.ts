@@ -3,19 +3,18 @@ import { Prize, SpinResult, PlayHistory, Player } from '../types';
 const STORAGE_KEY = 'luckyWheelGame';
 
 // Select a prize based on probability
-export const selectPrize = (prizes: Prize[]): Prize => {
-  const totalProbability = prizes.reduce((sum, prize) => sum + prize.probability, 0);
-  let random = Math.random() * totalProbability;
-  
+export function selectPrize(prizes: Prize[]): Prize {
+  const totalWeight = prizes.reduce((sum, p) => sum + (p.weight || 1), 0);
+  const rand = Math.random() * totalWeight;
+  let acc = 0;
+
   for (const prize of prizes) {
-    random -= prize.probability;
-    if (random <= 0) {
-      return prize;
-    }
+    acc += prize.weight || 1;
+    if (rand < acc) return prize;
   }
-  
-  return prizes[prizes.length - 1]; // Fallback
-};
+
+  return prizes[prizes.length - 1]; // fallback
+}
 
 // Calculate the rotation angle for the wheel to land on a specific prize
 export const calculateTargetAngle = (prizes: Prize[], selectedPrize: Prize): number => {

@@ -5,11 +5,9 @@ export const gameConfig = {
   description: "Quay để trúng quà hấp dẫn!",
   maxPlaysPerDay: 300,
   prizes: [
-    { id: '1', name: 'Freeship', backgroundColor: '#f44336' },
-    { id: '2', name: 'Giảm 50k', backgroundColor: '#2196f3' },
-    { id: '3', name: 'Voucher 100k', backgroundColor: '#4caf50' },
-    { id: '4', name: 'Chúc may mắn', backgroundColor: '#ff9800' },
-    { id: '5', name: 'Thêm lượt', backgroundColor: '#9c27b0' },
-    { id: '6', name: 'Trúng tour!', backgroundColor: '#00bcd4' },
+    { id: '1', name: 'Trúng tour!', backgroundColor: '#4caf50', weight: 1 },
+    { id: '2', name: 'Giảm 50k', backgroundColor: '#2196f3', weight: 10 },
+    { id: '3', name: 'Freeship', backgroundColor: '#ff9800', weight: 20 },
+    { id: '4', name: 'Chúc may mắn lần sau', backgroundColor: '#9e9e9e', weight: 69 },
   ]
 };

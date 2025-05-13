@@ -23,6 +23,7 @@ function App() {
   const [showPrizeModal, setShowPrizeModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [spinResponse, setSpinResponse] = useState<SpinResponse | null>(null);
+  const [isStartingNewSession, setIsStartingNewSession] = useState(false);
 
   useEffect(() => {
     const initializeGame = async () => {
@@ -44,11 +45,61 @@ function App() {
     setIsRegistered(true);
   };
 
+  const startNewSession = async () => {
+    if (!player) return null;
+    
+    try {
+      setIsStartingNewSession(true);
+      const apiDomain = import.meta.env.VITE_API_DOMAIN;
+      const response = await fetch(`${apiDomain}/api/v1/game/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: player.name,
+          phone: player.phone,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Không thể bắt đầu phiên mới');
+      }
+
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        setPlayer({
+          ...player,
+          sessionId: result.data.session_id
+        });
+        return result.data.session_id;
+      } else {
+        throw new Error(result.message || 'Không thể bắt đầu phiên mới');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Đã có lỗi xảy ra');
+      return null;
+    } finally {
+      setIsStartingNewSession(false);
+    }
+  };
+
   const handleSpin = async () => {
-    if (!gameConfig || isSpinning || remainingPlays <= 0 || !player?.sessionId) return;
+    if (!gameConfig || isSpinning || remainingPlays <= 0 || isStartingNewSession) return;
 
     try {
       setIsSpinning(true);
+      
+      // Get new session for subsequent spins
+      let currentSessionId = player?.sessionId;
+      if (!currentSessionId) {
+        currentSessionId = await startNewSession();
+        if (!currentSessionId) {
+          throw new Error('Không thể bắt đầu phiên mới');
+        }
+      }
+
       const apiDomain = import.meta.env.VITE_API_DOMAIN;
       const response = await fetch(`${apiDomain}/api/v1/game/spin`, {
         method: 'POST',
@@ -56,7 +107,7 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          session_id: player.sessionId,
+          session_id: currentSessionId,
         }),
       });
 
@@ -124,6 +175,9 @@ function App() {
             timestamp: Date.now(),
           });
         }
+
+        // Clear session ID after successful spin
+        setPlayer(prev => prev ? { ...prev, sessionId: undefined } : null);
       } else {
         throw new Error(result.message || 'Không thể xác nhận kết quả');
       }
@@ -201,14 +255,16 @@ function App() {
 
               <button
                 onClick={handleSpin}
-                disabled={isSpinning || remainingPlays <= 0}
+                disabled={isSpinning || remainingPlays <= 0 || isStartingNewSession}
                 className={`text-xl font-bold py-3 px-8 rounded-full shadow-lg transform transition-all duration-300 ${
-                  isSpinning || remainingPlays <= 0
+                  isSpinning || remainingPlays <= 0 || isStartingNewSession
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-yellow-500 hover:bg-yellow-600 hover:scale-105'
                 } text-white`}
               >
-                {isSpinning ? "Đang quay..." : remainingPlays <= 0 ? "Hết lượt quay" : "QUAY NGAY"}
+                {isSpinning ? "Đang quay..." : 
+                 isStartingNewSession ? "Đang chuẩn bị..." :
+                 remainingPlays <= 0 ? "Hết lượt quay" : "QUAY NGAY"}
               </button>
             </div>
           )}

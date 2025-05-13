@@ -29,8 +29,22 @@ const LuckyWheel: React.FC<LuckyWheelProps> = ({
     setRotation(0);
 
     const delayTimeout = setTimeout(() => {
-      setTransition('transform 3s cubic-bezier(0.25, 0.8, 0.25, 1)');
-      setRotation(targetAngle);
+      // Add at least 3 full rotations (1080 degrees) to the target angle
+      const minRotations = 1080; // 3 * 360
+      const anglePerSegment = 360 / prizes.length;
+      
+      // Calculate the center angle of the target segment
+      const segmentIndex = Math.floor(targetAngle / anglePerSegment);
+      const centerAngle = (segmentIndex * anglePerSegment) + (anglePerSegment / 2);
+      
+      // Add a small random offset for natural feel (-5 to 5 degrees)
+      const randomOffset = (Math.random() * 10 - 5);
+      
+      // Final angle includes minimum rotations plus centered target angle
+      const finalAngle = minRotations + centerAngle + randomOffset;
+      
+      setTransition('transform 4s cubic-bezier(0.25, 0.1, 0.25, 1)');
+      setRotation(finalAngle);
     }, 50);
 
     const handleTransitionEnd = () => {
@@ -48,14 +62,14 @@ const LuckyWheel: React.FC<LuckyWheelProps> = ({
         spinEndTriggered.current = true;
         onSpinEnd();
       }
-    }, 3500);
+    }, 4500);
 
     return () => {
       clearTimeout(delayTimeout);
       clearTimeout(fallback);
       wheel?.removeEventListener('transitionend', handleTransitionEnd);
     };
-  }, [isSpinning, targetAngle, onSpinEnd]);
+  }, [isSpinning, targetAngle, onSpinEnd, prizes.length]);
 
   const radius = 100;
   const center = 100;

@@ -1,32 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Player, Prize } from './types';
-import { gameConfig } from './config/gameConfig';
+import { Player, Prize, GameConfig, SpinResponse } from './types';
+import { fetchGameConfig } from './config/gameConfig';
 import { 
-  selectPrize, 
-  calculateTargetAngle, 
   savePlayHistory, 
   getRemainingPlays
 } from './utils/gameUtils';
 import RegistrationForm from './components/RegistrationForm';
 import LuckyWheel from './components/LuckyWheel';
 import PrizeNotification from './components/PrizeNotification';
-import SocialShare from './components/SocialShare';
 import Footer from './components/Footer';
 import { Gift } from 'lucide-react';
 
 function App() {
+  const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [hasSpinEnded, setHasSpinEnded] = useState(false);
   const [targetAngle, setTargetAngle] = useState(0);
-  const [remainingPlays, setRemainingPlays] = useState(gameConfig.maxPlaysPerDay);
+  const [remainingPlays, setRemainingPlays] = useState(0);
   const [selectedPrize, setSelectedPrize] = useState<Prize | null>(null);
   const [showPrizeModal, setShowPrizeModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [spinResponse, setSpinResponse] = useState<SpinResponse | null>(null);
 
   useEffect(() => {
-    const remaining = getRemainingPlays(gameConfig.maxPlaysPerDay);
-    setRemainingPlays(remaining);
+    const initializeGame = async () => {
+      try {
+        const config = await fetchGameConfig();
+        setGameConfig(config);
+        const remaining = getRemainingPlays(config.maxPlaysPerDay);
+        setRemainingPlays(remaining);
+      } catch (err) {
+        setError('Không thể tải cấu hình trò chơi. Vui lòng thử lại sau.');
+      }
+    };
+
+    initializeGame();
   }, []);
 
   const handleRegister = (playerData: Player) => {
@@ -34,71 +44,129 @@ function App() {
     setIsRegistered(true);
   };
 
-  const handleSpin = () => {
-    if (isSpinning || remainingPlays <= 0 || !player) return;
-  
-    const prize = selectPrize(gameConfig.prizes); // random theo tỉ lệ nếu có
-    const index = gameConfig.prizes.findIndex(p => p.id === prize.id);
-    const anglePerPrize = 360 / gameConfig.prizes.length;
-  
-    // const targetIndexAngle = index * anglePerPrize;
-    const targetIndexAngle = index * anglePerPrize + anglePerPrize / 2;
-    const fullSpins = 360 * 3;
-    const randomOffset = Math.random() * anglePerPrize * 0.8 - anglePerPrize * 0.4;
-    const angle = fullSpins + targetIndexAngle + randomOffset;
-  
-    console.log("🎯 Random target:", prize.name, "| Final angle:", angle);
+  const handleSpin = async () => {
+    if (!gameConfig || isSpinning || remainingPlays <= 0 || !player?.sessionId) return;
 
-    console.log("🎯 Random target:", prize.name);
-    console.log("🔢 Prize index:", index);
-    console.log("🎯 Target angle (final):", angle);
-  
-    setTargetAngle(angle);
-    setSelectedPrize(prize); // set ngay để hiển thị
-    setIsSpinning(true);
-    setHasSpinEnded(false);
-    setShowPrizeModal(false);
-  
-    savePlayHistory(player, {
-      prizeId: prize.id,
-      timestamp: Date.now(),
-    });
-  
-    setRemainingPlays(prev => prev - 1);
+    try {
+      setIsSpinning(true);
+      const apiDomain = import.meta.env.VITE_API_DOMAIN;
+      const response = await fetch(`${apiDomain}/api/v1/game/spin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: player.sessionId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Không thể quay vòng quay');
+      }
+
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        setSpinResponse(result.data);
+        setTargetAngle(result.data.angle);
+        setSelectedPrize({
+          id: parseInt(result.data.prize.id),
+          name: result.data.prize.name,
+          backgroundColor: result.data.prize.backgroundColor,
+          weight: 0,
+          quantityLeft: 0,
+        });
+        setHasSpinEnded(false);
+        setShowPrizeModal(false);
+        setRemainingPlays(prev => prev - 1);
+      } else {
+        throw new Error(result.message || 'Không thể quay vòng quay');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Đã có lỗi xảy ra');
+      setIsSpinning(false);
+    }
   };
-  
 
-  const handleSpinEnd = () => {
-    // const normalizedAngle = (360 - (targetAngle % 360)) % 360;
-    const normalizedAngle = targetAngle % 360;
-    const anglePerPrize = 360 / gameConfig.prizes.length;
-    const index = Math.floor(normalizedAngle / anglePerPrize);
-    const actualPrize = gameConfig.prizes[index];
-  
-    console.log("🎯 Prize at pointer:", actualPrize.name, "| Angle:", normalizedAngle);
+  const handleSpinEnd = async () => {
+    if (!spinResponse || !player?.sessionId) return;
 
-    console.log("✅ Final normalized angle:", normalizedAngle);
-    console.log("📍 Prize at pointer:", actualPrize.name);
-    console.log("🔢 Index resolved from angle:", index);
-  
-    setSelectedPrize(actualPrize);
-    setIsSpinning(false);
-    setHasSpinEnded(true);
-    setShowPrizeModal(true);
+    try {
+      const apiDomain = import.meta.env.VITE_API_DOMAIN;
+      const response = await fetch(`${apiDomain}/api/v1/game/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: player.sessionId,
+          prize_id: parseInt(spinResponse.prize.id),
+          prize_name: spinResponse.prize.name,
+          prize_index: spinResponse.index,
+          angle: spinResponse.angle,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Không thể xác nhận kết quả');
+      }
+
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        setIsSpinning(false);
+        setHasSpinEnded(true);
+        setShowPrizeModal(true);
+        
+        if (player) {
+          savePlayHistory(player, {
+            prizeId: parseInt(spinResponse.prize.id),
+            timestamp: Date.now(),
+          });
+        }
+      } else {
+        throw new Error(result.message || 'Không thể xác nhận kết quả');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Đã có lỗi xảy ra');
+      setIsSpinning(false);
+    }
   };
 
   const handleCloseModal = () => {
     setShowPrizeModal(false);
   };
 
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-50 to-purple-100">
+        <div className="text-center p-8">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Lỗi</h2>
+          <p className="text-gray-700">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!gameConfig) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-50 to-purple-100">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-purple-50 to-purple-100">
       <header className="bg-purple-700 text-white py-6 px-4 shadow-md">
         <div className="container mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 text-yellow-300">
-            {gameConfig.title}
+            Vòng Quay May Mắn
           </h1>
-          <p className="text-lg mb-0">{gameConfig.description}</p>
+          <p className="text-lg mb-0">Quay để trúng quà hấp dẫn!</p>
         </div>
       </header>
 
@@ -127,7 +195,7 @@ function App() {
                   isSpinning={isSpinning}
                   targetAngle={targetAngle}
                   onSpinEnd={handleSpinEnd}
-                  onSpin={handleSpin}  // truyền thêm prop này
+                  onSpin={handleSpin}
                 />
               </div>
 
@@ -142,8 +210,6 @@ function App() {
               >
                 {isSpinning ? "Đang quay..." : remainingPlays <= 0 ? "Hết lượt quay" : "QUAY NGAY"}
               </button>
-
-              <SocialShare message="Tôi vừa tham gia vòng quay may mắn và nhận được phần quà hấp dẫn! Bạn cũng thử ngay nhé!" />
             </div>
           )}
         </div>

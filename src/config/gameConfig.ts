@@ -1,13 +1,22 @@
 import { GameConfig } from '../types';
 
-export const gameConfig = {
-  title: "Vòng Quay May Mắn",
-  description: "Quay để trúng quà hấp dẫn!",
-  maxPlaysPerDay: 300,
-  prizes: [
-    { id: '1', name: 'Trúng tour!', backgroundColor: '#4caf50', weight: 1 },
-    { id: '2', name: 'Giảm 50k', backgroundColor: '#2196f3', weight: 10 },
-    { id: '3', name: 'Freeship', backgroundColor: '#ff9800', weight: 20 },
-    { id: '4', name: 'Chúc may mắn lần sau', backgroundColor: '#9e9e9e', weight: 69 },
-  ]
-};
+export async function fetchGameConfig(): Promise<GameConfig> {
+  try {
+    const apiDomain = import.meta.env.VITE_API_DOMAIN;
+    const response = await fetch(`${apiDomain}/api/v1/game/config`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch game config');
+    }
+
+    const result = await response.json();
+    return result.data;
+  } catch (error) {
+    console.error('Error fetching game config:', error);
+    throw error;
+  }
+}

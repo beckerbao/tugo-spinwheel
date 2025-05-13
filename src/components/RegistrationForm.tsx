@@ -11,9 +11,9 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister }) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [errors, setErrors] = useState({ name: '', phone: '' });
+  const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
-    // Check if player already registered
     const storedPlayer = getStoredPlayer();
     if (storedPlayer) {
       setName(storedPlayer.name);
@@ -42,11 +42,47 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister }) => {
     return isValid;
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
-      onRegister({ name, phone });
+      setIsLoading(true);
+      try {
+        const apiDomain = import.meta.env.VITE_API_DOMAIN;
+        const response = await fetch(`${apiDomain}/api/v1/game/start`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name,
+            phone,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Không thể bắt đầu trò chơi');
+        }
+
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+          onRegister({ 
+            name, 
+            phone,
+            sessionId: result.data.session_id 
+          });
+        } else {
+          throw new Error(result.message || 'Không thể bắt đầu trò chơi');
+        }
+      } catch (error) {
+        setErrors(prev => ({
+          ...prev,
+          name: error instanceof Error ? error.message : 'Đã có lỗi xảy ra'
+        }));
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
   
@@ -70,6 +106,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister }) => {
               placeholder="Nhập họ và tên"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={isLoading}
             />
           </div>
           {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
@@ -90,6 +127,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister }) => {
               placeholder="Nhập số điện thoại"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              disabled={isLoading}
             />
           </div>
           {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone}</p>}
@@ -97,9 +135,12 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister }) => {
         
         <button
           type="submit"
-          className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+          disabled={isLoading}
+          className={`w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
+            isLoading ? 'opacity-75 cursor-not-allowed' : ''
+          }`}
         >
-          Bắt Đầu Chơi
+          {isLoading ? 'Đang xử lý...' : 'Bắt Đầu Chơi'}
         </button>
       </form>
     </div>

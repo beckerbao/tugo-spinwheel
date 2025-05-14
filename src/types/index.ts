@@ -15,6 +15,7 @@ export interface Player {
   name: string;
   phone: string;
   sessionId?: string;
+  remainingPlays?: number;
 }
 
 export interface SpinResult {
@@ -35,6 +36,9 @@ export interface ApiResponse<T> {
 
 export interface StartGameResponse {
   session_id: string;
+  maxPlaysPerDay: number;
+  playsToday: number;
+  remainingPlays: number;
 }
 
 export interface SpinResponse {
@@ -46,9 +50,4 @@ export interface SpinResponse {
     backgroundColor: string;
   };
   session_id: string;
-}
-
-export interface ConfirmSpinResponse {
-  status: string;
-  message: string;
 }

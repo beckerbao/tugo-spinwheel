@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Player, Prize, GameConfig, SpinResponse } from './types';
 import { fetchGameConfig } from './config/gameConfig';
-import { 
-  savePlayHistory, 
-  getRemainingPlays
-} from './utils/gameUtils';
+import { savePlayHistory } from './utils/gameUtils';
 import RegistrationForm from './components/RegistrationForm';
 import LuckyWheel from './components/LuckyWheel';
 import PrizeNotification from './components/PrizeNotification';
@@ -30,8 +27,6 @@ function App() {
       try {
         const config = await fetchGameConfig();
         setGameConfig(config);
-        const remaining = getRemainingPlays(config.maxPlaysPerDay);
-        setRemainingPlays(remaining);
       } catch (err) {
         setError('Không thể tải cấu hình trò chơi. Vui lòng thử lại sau.');
       }
@@ -39,11 +34,6 @@ function App() {
 
     initializeGame();
   }, []);
-
-  const handleRegister = (playerData: Player) => {
-    setPlayer(playerData);
-    setIsRegistered(true);
-  };
 
   const startNewSession = async () => {
     if (!player) return null;
@@ -69,6 +59,7 @@ function App() {
       const result = await response.json();
       
       if (result.status === 'success') {
+        setRemainingPlays(result.data.remainingPlays);
         setPlayer({
           ...player,
           sessionId: result.data.session_id
@@ -129,7 +120,6 @@ function App() {
         });
         setHasSpinEnded(false);
         setShowPrizeModal(false);
-        setRemainingPlays(prev => prev - 1);
       } else {
         throw new Error(result.message || 'Không thể quay vòng quay');
       }
@@ -176,8 +166,8 @@ function App() {
           });
         }
 
-        // Clear session ID after successful spin
-        setPlayer(prev => prev ? { ...prev, sessionId: undefined } : null);
+        // Start new session to get updated remaining plays
+        await startNewSession();
       } else {
         throw new Error(result.message || 'Không thể xác nhận kết quả');
       }
@@ -189,6 +179,12 @@ function App() {
 
   const handleCloseModal = () => {
     setShowPrizeModal(false);
+  };
+
+  const handleRegister = (playerData: Player) => {
+    setPlayer(playerData);
+    setIsRegistered(true);
+    setRemainingPlays(playerData.remainingPlays || 0);
   };
 
   if (error) {

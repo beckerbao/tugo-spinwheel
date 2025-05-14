@@ -70,7 +70,8 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister }) => {
           onRegister({ 
             name, 
             phone,
-            sessionId: result.data.session_id 
+            sessionId: result.data.session_id,
+            remainingPlays: result.data.remainingPlays
           });
         } else {
           throw new Error(result.message || 'Không thể bắt đầu trò chơi');

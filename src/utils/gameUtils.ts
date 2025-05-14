@@ -55,26 +55,7 @@ export const savePlayHistory = (player: Player, spinResult: SpinResult): void =>
   localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
 };
 
-// Get remaining plays for today
-export const getRemainingPlays = (maxPlaysPerDay: number): number => {
-  const existingDataString = localStorage.getItem(STORAGE_KEY);
-  
-  if (!existingDataString) {
-    return maxPlaysPerDay;
-  }
-  
-  const existingData: PlayHistory = JSON.parse(existingDataString);
-  const today = new Date().setHours(0, 0, 0, 0);
-  
-  const playsToday = existingData.spins.filter(spin => {
-    const spinDate = new Date(spin.timestamp).setHours(0, 0, 0, 0);
-    return spinDate === today;
-  }).length;
-  
-  return Math.max(0, maxPlaysPerDay - playsToday);
-};
-
-// Check if player has registered before
+// Get stored player data
 export const getStoredPlayer = (): Player | null => {
   const existingDataString = localStorage.getItem(STORAGE_KEY);
   
